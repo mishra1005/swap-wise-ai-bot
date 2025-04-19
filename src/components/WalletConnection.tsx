@@ -19,7 +19,7 @@ export const WalletConnection: React.FC = () => {
         {wallet ? (
           <Button 
             variant="outline" 
-            className="border-accent text-accent hover:bg-accent hover:text-white"
+            className="border-green-500 text-green-500 hover:bg-green-500 hover:text-white"
             onClick={disconnect}
           >
             {wallet.address.slice(0, 6)}...{wallet.address.slice(-4)}
@@ -27,7 +27,7 @@ export const WalletConnection: React.FC = () => {
         ) : (
           <Button 
             variant="outline" 
-            className="border-accent text-accent hover:bg-accent hover:text-white"
+            className="border-green-500 text-green-500 hover:bg-green-500 hover:text-white"
             onClick={() => setDialogOpen(true)}
             disabled={connecting}
           >
@@ -43,19 +43,19 @@ export const WalletConnection: React.FC = () => {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <Button
-              className="bg-accent hover:bg-accent-hover"
+              className="bg-green-500 hover:bg-green-600 text-white"
               onClick={() => handleConnect('MetaMask')}
             >
               MetaMask
             </Button>
             <Button
-              className="bg-accent hover:bg-accent-hover"
+              className="bg-green-500 hover:bg-green-600 text-white"
               onClick={() => handleConnect('Phantom')}
             >
               Phantom
             </Button>
             <Button
-              className="bg-accent hover:bg-accent-hover"
+              className="bg-green-500 hover:bg-green-600 text-white"
               onClick={() => handleConnect('Backpack')}
             >
               Backpack
