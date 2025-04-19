@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { Button } from '@/components/ui/button';
@@ -9,6 +8,9 @@ import { SwapInterface } from '../SwapInterface';
 import { TransactionHistory } from '../TransactionHistory';
 import { generateBotResponse, parseAirdropCommand, parseSwapCommand } from '@/utils/chatHelpers';
 import { useWallet } from '@/hooks/useWallet';
+import { PerplexityKeyInput } from './PerplexityKeyInput';
+import { generateAIResponse } from '@/services/perplexityService';
+import { toast } from 'sonner';
 
 interface Message {
   content: string;
@@ -29,6 +31,7 @@ export const ChatInterface: React.FC = () => {
   const [input, setInput] = useState('');
   const [processingCommand, setProcessingCommand] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [apiKey, setApiKey] = useState<string | null>(localStorage.getItem('perplexity_api_key'));
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -50,75 +53,70 @@ export const ChatInterface: React.FC = () => {
     setInput('');
     setProcessingCommand(true);
 
-    // Process special commands
-    const airdropCommand = parseAirdropCommand(userInput);
-    const swapCommand = parseSwapCommand(userInput);
-    
-    // Add a small delay for better UX
-    await new Promise(resolve => setTimeout(resolve, 500));
+    try {
+      // Process special commands first
+      const airdropCommand = parseAirdropCommand(userInput);
+      const swapCommand = parseSwapCommand(userInput);
 
-    // Handle airdrop command
-    if (airdropCommand) {
-      const botResponse: Message = {
-        content: `Processing airdrop request for ${airdropCommand.amount} ${airdropCommand.token}...`,
-        isBot: true,
-        timestamp: new Date().toLocaleTimeString(),
-      };
-      setMessages(prev => [...prev, botResponse]);
-      
-      // Process the airdrop
-      const result = await requestAirdrop(airdropCommand.token, airdropCommand.amount);
-      
-      const resultMessage: Message = {
-        content: result 
-          ? `Successfully received ${airdropCommand.amount} ${airdropCommand.token} from the testnet faucet!` 
-          : `There was an issue with the airdrop request. Please try again later.`,
-        isBot: true,
-        timestamp: new Date().toLocaleTimeString(),
-      };
-      
-      setMessages(prev => [...prev, resultMessage]);
-      setProcessingCommand(false);
-      return;
-    }
-    
-    // Handle swap command with extracted values
-    if (swapCommand) {
-      const botResponse: Message = {
-        content: `I'll help you swap ${swapCommand.amount} ${swapCommand.fromToken} to ${swapCommand.toToken}.`,
-        isBot: true,
-        timestamp: new Date().toLocaleTimeString(),
-        component: 'swap'
-      };
-      
-      setMessages(prev => [...prev, botResponse]);
-      setProcessingCommand(false);
-      return;
-    }
-
-    // Handle regular message
-    setTimeout(() => {
-      const botResponse: Message = {
-        content: generateBotResponse(userInput),
-        isBot: true,
-        timestamp: new Date().toLocaleTimeString(),
-      };
-
-      // Add components based on message content
-      if (userInput.toLowerCase().includes('swap')) {
-        botResponse.component = 'swap';
-      } else if (userInput.toLowerCase().includes('history') || userInput.toLowerCase().includes('transactions')) {
-        botResponse.component = 'history';
+      if (airdropCommand) {
+        const botResponse: Message = {
+          content: `Processing airdrop request for ${airdropCommand.amount} ${airdropCommand.token}...`,
+          isBot: true,
+          timestamp: new Date().toLocaleTimeString(),
+        };
+        setMessages(prev => [...prev, botResponse]);
+        
+        // Process the airdrop
+        const result = await requestAirdrop(airdropCommand.token, airdropCommand.amount);
+        
+        const resultMessage: Message = {
+          content: result 
+            ? `Successfully received ${airdropCommand.amount} ${airdropCommand.token} from the testnet faucet!` 
+            : `There was an issue with the airdrop request. Please try again later.`,
+          isBot: true,
+          timestamp: new Date().toLocaleTimeString(),
+        };
+        
+        setMessages(prev => [...prev, resultMessage]);
+      } else if (swapCommand) {
+        const botResponse: Message = {
+          content: `I'll help you swap ${swapCommand.amount} ${swapCommand.fromToken} to ${swapCommand.toToken}.`,
+          isBot: true,
+          timestamp: new Date().toLocaleTimeString(),
+          component: 'swap'
+        };
+        
+        setMessages(prev => [...prev, botResponse]);
+      } else if (apiKey) {
+        // Generate AI response
+        const aiResponse = await generateAIResponse(userInput, apiKey);
+        const botResponse: Message = {
+          content: aiResponse,
+          isBot: true,
+          timestamp: new Date().toLocaleTimeString(),
+        };
+        setMessages(prev => [...prev, botResponse]);
+      } else {
+        // Fallback response if no API key
+        const botResponse: Message = {
+          content: "Please provide a Perplexity API key to enable AI responses.",
+          isBot: true,
+          timestamp: new Date().toLocaleTimeString(),
+        };
+        setMessages(prev => [...prev, botResponse]);
       }
-
-      setMessages((prev) => [...prev, botResponse]);
+    } catch (error) {
+      toast.error('Failed to generate response. Please check your API key.');
+      console.error('Chat error:', error);
+    } finally {
       setProcessingCommand(false);
-    }, 1000);
+    }
   };
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] bg-dark">
       <ScrollArea className="flex-1 p-4 bg-chat-gradient" ref={scrollRef}>
+        {!apiKey && <PerplexityKeyInput onKeySubmit={setApiKey} />}
         {messages.map((message, index) => (
           <div key={index} className={message.isBot ? "" : "animate-fade-in"}>
             <MessageBubble
