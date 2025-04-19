@@ -6,10 +6,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowRight } from 'lucide-react';
 import { SwapInterface } from '../SwapInterface';
 import { TransactionHistory } from '../TransactionHistory';
-import { generateBotResponse, parseAirdropCommand, parseSwapCommand } from '@/utils/chatHelpers';
+import { parseAirdropCommand, parseSwapCommand } from '@/utils/chatHelpers';
 import { useWallet } from '@/hooks/useWallet';
-import { PerplexityKeyInput } from './PerplexityKeyInput';
-import { generateAIResponse } from '@/services/perplexityService';
+import { generateAIResponse } from '@/services/aiService';
 import { toast } from 'sonner';
 
 interface Message {
@@ -23,7 +22,7 @@ export const ChatInterface: React.FC = () => {
   const { wallet, requestAirdrop } = useWallet();
   const [messages, setMessages] = useState<Message[]>([
     {
-      content: "Welcome to EthSwap! I can help you swap cryptocurrencies. First, let's connect your wallet to get started.",
+      content: "Welcome to EthSwap! I can help you swap cryptocurrencies and answer any crypto-related questions. How can I assist you today?",
       isBot: true,
       timestamp: new Date().toLocaleTimeString(),
     },
@@ -31,7 +30,6 @@ export const ChatInterface: React.FC = () => {
   const [input, setInput] = useState('');
   const [processingCommand, setProcessingCommand] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [apiKey, setApiKey] = useState<string | null>(localStorage.getItem('perplexity_api_key'));
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -87,26 +85,18 @@ export const ChatInterface: React.FC = () => {
         };
         
         setMessages(prev => [...prev, botResponse]);
-      } else if (apiKey) {
+      } else {
         // Generate AI response
-        const aiResponse = await generateAIResponse(userInput, apiKey);
+        const aiResponse = await generateAIResponse(userInput);
         const botResponse: Message = {
           content: aiResponse,
           isBot: true,
           timestamp: new Date().toLocaleTimeString(),
         };
         setMessages(prev => [...prev, botResponse]);
-      } else {
-        // Fallback response if no API key
-        const botResponse: Message = {
-          content: "Please provide a Perplexity API key to enable AI responses.",
-          isBot: true,
-          timestamp: new Date().toLocaleTimeString(),
-        };
-        setMessages(prev => [...prev, botResponse]);
       }
     } catch (error) {
-      toast.error('Failed to generate response. Please check your API key.');
+      toast.error('Failed to generate response. Please try again.');
       console.error('Chat error:', error);
     } finally {
       setProcessingCommand(false);
@@ -116,7 +106,6 @@ export const ChatInterface: React.FC = () => {
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] bg-dark">
       <ScrollArea className="flex-1 p-4 bg-chat-gradient" ref={scrollRef}>
-        {!apiKey && <PerplexityKeyInput onKeySubmit={setApiKey} />}
         {messages.map((message, index) => (
           <div key={index} className={message.isBot ? "" : "animate-fade-in"}>
             <MessageBubble
