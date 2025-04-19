@@ -10,6 +10,28 @@ export default {
 	],
 	prefix: "",
 	theme: {
+		extend: {
+			fontFamily: {
+				sans: ['Inter', 'sans-serif'],
+			},
+			colors: {
+				dark: {
+					DEFAULT: '#1A1F2C',
+					subtle: '#252A37',
+				},
+				primary: {
+					DEFAULT: '#2D1B69',
+					light: '#3D2B79',
+				},
+				accent: {
+					DEFAULT: '#8B5CF6',
+					hover: '#7C3AED',
+				},
+			},
+			backgroundImage: {
+				'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+				'chat-gradient': 'linear-gradient(180deg, rgba(139, 92, 246, 0.05) 0%, rgba(45, 27, 105, 0.05) 100%)',
+			},
 		container: {
 			center: true,
 			padding: '2rem',
