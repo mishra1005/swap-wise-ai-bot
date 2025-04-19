@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { ArrowRight } from 'lucide-react';
 import { SwapInterface } from '../SwapInterface';
 import { TransactionHistory } from '../TransactionHistory';
-import { generateBotResponse } from '@/utils/chatHelpers';
+import { generateBotResponse, parseAirdropCommand, parseSwapCommand } from '@/utils/chatHelpers';
 import { useWallet } from '@/hooks/useWallet';
 
 interface Message {
@@ -18,7 +18,7 @@ interface Message {
 }
 
 export const ChatInterface: React.FC = () => {
-  const { wallet } = useWallet();
+  const { wallet, requestAirdrop } = useWallet();
   const [messages, setMessages] = useState<Message[]>([
     {
       content: "Welcome to EthSwap! I can help you swap cryptocurrencies. First, let's connect your wallet to get started.",
@@ -27,6 +27,7 @@ export const ChatInterface: React.FC = () => {
     },
   ]);
   const [input, setInput] = useState('');
+  const [processingCommand, setProcessingCommand] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,34 +36,83 @@ export const ChatInterface: React.FC = () => {
     }
   }, [messages]);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const handleSend = async () => {
+    if (!input.trim() || processingCommand) return;
 
-    const newMessage: Message = {
+    const userMessage: Message = {
       content: input,
       isBot: false,
       timestamp: new Date().toLocaleTimeString(),
     };
 
-    setMessages((prev) => [...prev, newMessage]);
+    setMessages((prev) => [...prev, userMessage]);
+    const userInput = input;
     setInput('');
+    setProcessingCommand(true);
 
-    // Simulate bot response
+    // Process special commands
+    const airdropCommand = parseAirdropCommand(userInput);
+    const swapCommand = parseSwapCommand(userInput);
+    
+    // Add a small delay for better UX
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Handle airdrop command
+    if (airdropCommand) {
+      const botResponse: Message = {
+        content: `Processing airdrop request for ${airdropCommand.amount} ${airdropCommand.token}...`,
+        isBot: true,
+        timestamp: new Date().toLocaleTimeString(),
+      };
+      setMessages(prev => [...prev, botResponse]);
+      
+      // Process the airdrop
+      const result = await requestAirdrop(airdropCommand.token, airdropCommand.amount);
+      
+      const resultMessage: Message = {
+        content: result 
+          ? `Successfully received ${airdropCommand.amount} ${airdropCommand.token} from the testnet faucet!` 
+          : `There was an issue with the airdrop request. Please try again later.`,
+        isBot: true,
+        timestamp: new Date().toLocaleTimeString(),
+      };
+      
+      setMessages(prev => [...prev, resultMessage]);
+      setProcessingCommand(false);
+      return;
+    }
+    
+    // Handle swap command with extracted values
+    if (swapCommand) {
+      const botResponse: Message = {
+        content: `I'll help you swap ${swapCommand.amount} ${swapCommand.fromToken} to ${swapCommand.toToken}.`,
+        isBot: true,
+        timestamp: new Date().toLocaleTimeString(),
+        component: 'swap'
+      };
+      
+      setMessages(prev => [...prev, botResponse]);
+      setProcessingCommand(false);
+      return;
+    }
+
+    // Handle regular message
     setTimeout(() => {
       const botResponse: Message = {
-        content: generateBotResponse(input),
+        content: generateBotResponse(userInput),
         isBot: true,
         timestamp: new Date().toLocaleTimeString(),
       };
 
       // Add components based on message content
-      if (input.toLowerCase().includes('swap')) {
+      if (userInput.toLowerCase().includes('swap')) {
         botResponse.component = 'swap';
-      } else if (input.toLowerCase().includes('history') || input.toLowerCase().includes('transactions')) {
+      } else if (userInput.toLowerCase().includes('history') || userInput.toLowerCase().includes('transactions')) {
         botResponse.component = 'history';
       }
 
       setMessages((prev) => [...prev, botResponse]);
+      setProcessingCommand(false);
     }, 1000);
   };
 
@@ -70,19 +120,19 @@ export const ChatInterface: React.FC = () => {
     <div className="flex flex-col h-[calc(100vh-4rem)] bg-dark">
       <ScrollArea className="flex-1 p-4 bg-chat-gradient" ref={scrollRef}>
         {messages.map((message, index) => (
-          <div key={index}>
+          <div key={index} className={message.isBot ? "" : "animate-fade-in"}>
             <MessageBubble
               content={message.content}
               isBot={message.isBot}
               timestamp={message.timestamp}
             />
             {message.component === 'swap' && wallet && (
-              <div className="my-4">
+              <div className="my-4 animate-fade-in">
                 <SwapInterface />
               </div>
             )}
             {message.component === 'history' && wallet && (
-              <div className="my-4">
+              <div className="my-4 animate-fade-in">
                 <TransactionHistory />
               </div>
             )}
@@ -97,8 +147,9 @@ export const ChatInterface: React.FC = () => {
             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Type your message..."
             className="bg-dark-subtle border-dark-subtle text-white"
+            disabled={processingCommand}
           />
-          <Button onClick={handleSend} className="bg-accent hover:bg-accent-hover">
+          <Button onClick={handleSend} className="bg-green-500 hover:bg-green-600" disabled={processingCommand}>
             <ArrowRight className="h-5 w-5" />
           </Button>
         </div>
