@@ -8,8 +8,6 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  const openAIApiKey = Deno.env.get('OPENAI_API_KEY')
-
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -17,45 +15,49 @@ serve(async (req) => {
 
   try {
     const { message, chatHistory = [] } = await req.json()
+    const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
     
-    // Format the chat history for OpenAI
+    // Format the chat history for Gemini
     const formattedHistory = chatHistory.map(msg => ({
-      role: msg.isBot ? 'assistant' : 'user',
-      content: msg.content
+      role: msg.isBot ? 'model' : 'user',
+      parts: [{ text: msg.content }]
     }))
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
+        'x-goog-api-key': geminiApiKey,
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
+        contents: [
           {
-            role: 'system',
-            content: 'You are a helpful assistant that specializes in cryptocurrency and DeFi topics. Keep responses concise and focused on helping users with their crypto-related questions. Analyze market trends, explain blockchain concepts, and offer insights about trading and investing in crypto assets.'
+            role: 'user',
+            parts: [{ text: 'You are a helpful assistant that specializes in cryptocurrency and DeFi topics. Keep responses concise and focused on helping users with their crypto-related questions. Analyze market trends, explain blockchain concepts, and offer insights about trading and investing in crypto assets.' }]
           },
           ...formattedHistory,
           {
             role: 'user',
-            content: message
+            parts: [{ text: message }]
           }
         ],
-        temperature: 0.2,
-        max_tokens: 1000,
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 1000,
+        },
       }),
     })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      console.error('OpenAI API error:', errorData)
+      console.error('Gemini API error:', errorData)
       throw new Error(`Failed to generate AI response: ${response.status} ${response.statusText}`)
     }
 
     const data = await response.json()
-    return new Response(JSON.stringify({ content: data.choices[0].message.content }), {
+    const aiResponse = data.candidates[0].content.parts[0].text
+
+    return new Response(JSON.stringify({ content: aiResponse }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (error) {

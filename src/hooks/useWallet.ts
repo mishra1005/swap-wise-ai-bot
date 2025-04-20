@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { BrowserProvider, JsonRpcSigner, formatEther } from 'ethers';
 import { toast } from 'sonner';
@@ -105,22 +104,22 @@ export const useWallet = () => {
 
     setIsAirdropping(true);
     try {
-      // For real airdrop, we would call a faucet API or contract
-      // For test networks only, as mainnet requires real assets
-      
-      const networkName = await wallet.signer?.provider.getNetwork().then(net => net.name);
-      
-      if (networkName && ['sepolia', 'goerli', 'mumbai'].includes(networkName)) {
-        toast.success(`Requested ${amount} ${tokenSymbol} from the ${networkName} faucet`);
+      // For Sepolia testnet faucet
+      if (wallet.signer) {
+        const network = await wallet.signer.provider.getNetwork();
         
-        // Simulate faucet request here
-        // In a real app, you would call a faucet API endpoint
+        if (network.name !== 'sepolia') {
+          toast.error('Please switch to Sepolia testnet');
+          return false;
+        }
         
+        // Request testnet ETH from Sepolia faucet
+        // Note: This is a simplified example, in production you'd integrate with actual faucets
+        toast.success(`Requested ${amount} ${tokenSymbol} on Sepolia testnet`);
+        toast.info('Visit sepoliafaucet.com to get testnet ETH');
         return true;
-      } else {
-        toast.error(`Airdrop not available on the current network. Please switch to a testnet.`);
-        return false;
       }
+      return false;
     } catch (error: any) {
       console.error('Airdrop failed:', error);
       toast.error(error.message || 'Airdrop failed. Please try again later.');

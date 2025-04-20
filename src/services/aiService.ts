@@ -8,8 +8,15 @@ export const generateAIResponse = async (message: string, chatHistory: Message[]
       body: { message, chatHistory }
     });
 
-    if (error) throw error;
-    if (!data.content) throw new Error('No response content');
+    if (error) {
+      console.error('Supabase function error:', error);
+      throw error;
+    }
+    
+    if (!data.content) {
+      console.error('No response content:', data);
+      throw new Error('No response content');
+    }
     
     return data.content;
   } catch (error) {
