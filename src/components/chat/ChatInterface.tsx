@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { Button } from '@/components/ui/button';
@@ -10,13 +11,7 @@ import { parseAirdropCommand, parseSwapCommand } from '@/utils/chatHelpers';
 import { useWallet } from '@/hooks/useWallet';
 import { generateAIResponse } from '@/services/aiService';
 import { toast } from 'sonner';
-
-interface Message {
-  content: string;
-  isBot: boolean;
-  timestamp: string;
-  component?: 'swap' | 'history';
-}
+import { Message } from '@/types/chat';
 
 export const ChatInterface: React.FC = () => {
   const { wallet, requestAirdrop } = useWallet();
@@ -69,8 +64,8 @@ export const ChatInterface: React.FC = () => {
         
         const resultMessage: Message = {
           content: result 
-            ? `Successfully received ${airdropCommand.amount} ${airdropCommand.token} from the testnet faucet!` 
-            : `There was an issue with the airdrop request. Please try again later.`,
+            ? `Successfully initiated airdrop request for ${airdropCommand.amount} ${airdropCommand.token} to your wallet. Check your wallet for the transaction.` 
+            : `There was an issue with the airdrop request. Please make sure you're on a testnet.`,
           isBot: true,
           timestamp: new Date().toLocaleTimeString(),
         };
@@ -86,8 +81,10 @@ export const ChatInterface: React.FC = () => {
         
         setMessages(prev => [...prev, botResponse]);
       } else {
-        // Generate AI response
-        const aiResponse = await generateAIResponse(userInput);
+        // Generate AI response with chat history for context
+        // Only send the last 10 messages for context to avoid token limits
+        const recentMessages = messages.slice(-10);
+        const aiResponse = await generateAIResponse(userInput, recentMessages);
         const botResponse: Message = {
           content: aiResponse,
           isBot: true,
@@ -95,9 +92,16 @@ export const ChatInterface: React.FC = () => {
         };
         setMessages(prev => [...prev, botResponse]);
       }
-    } catch (error) {
+    } catch (error: any) {
       toast.error('Failed to generate response. Please try again.');
       console.error('Chat error:', error);
+      
+      const errorMessage: Message = {
+        content: "I'm sorry, I encountered an error processing your request. Please try again.",
+        isBot: true,
+        timestamp: new Date().toLocaleTimeString(),
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setProcessingCommand(false);
     }

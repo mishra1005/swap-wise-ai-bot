@@ -16,7 +16,13 @@ serve(async (req) => {
   }
 
   try {
-    const { message } = await req.json()
+    const { message, chatHistory = [] } = await req.json()
+    
+    // Format the chat history for OpenAI
+    const formattedHistory = chatHistory.map(msg => ({
+      role: msg.isBot ? 'assistant' : 'user',
+      content: msg.content
+    }))
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -29,8 +35,9 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful assistant that specializes in cryptocurrency and DeFi topics. Keep responses concise and focused on helping users with their crypto-related questions.'
+            content: 'You are a helpful assistant that specializes in cryptocurrency and DeFi topics. Keep responses concise and focused on helping users with their crypto-related questions. Analyze market trends, explain blockchain concepts, and offer insights about trading and investing in crypto assets.'
           },
+          ...formattedHistory,
           {
             role: 'user',
             content: message
@@ -42,7 +49,9 @@ serve(async (req) => {
     })
 
     if (!response.ok) {
-      throw new Error('Failed to generate AI response')
+      const errorData = await response.json().catch(() => ({}))
+      console.error('OpenAI API error:', errorData)
+      throw new Error(`Failed to generate AI response: ${response.status} ${response.statusText}`)
     }
 
     const data = await response.json()
