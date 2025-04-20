@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageBubble } from './MessageBubble';
 import { Button } from '@/components/ui/button';
@@ -47,9 +46,15 @@ export const ChatInterface: React.FC = () => {
     setProcessingCommand(true);
 
     try {
+      console.log("🔍 Processing user input:", userInput);
+      console.log("🔑 Current wallet status:", wallet ? "Connected" : "Not Connected");
+      
       // Check if wallet is connected first for airdrop/swap commands
       const airdropCommand = parseAirdropCommand(userInput);
       const swapCommand = parseSwapCommand(userInput);
+      
+      console.log("🚰 Airdrop command detected:", airdropCommand);
+      console.log("💱 Swap command detected:", swapCommand);
       
       if ((airdropCommand || swapCommand) && !wallet) {
         const connectMessage: Message = {
@@ -64,6 +69,7 @@ export const ChatInterface: React.FC = () => {
 
       // Process special commands
       if (airdropCommand && wallet) {
+        console.log("💧 Processing airdrop request:", airdropCommand);
         const botResponse: Message = {
           content: `Processing airdrop request for ${airdropCommand.amount} ${airdropCommand.token}...`,
           isBot: true,
@@ -71,8 +77,13 @@ export const ChatInterface: React.FC = () => {
         };
         setMessages(prev => [...prev, botResponse]);
 
+        // Detailed network logging and handling
+        console.log("🌐 Current network:", wallet.network);
+        console.log("🆔 Current Chain ID:", wallet.chainId);
+
         // Check network and switch if needed
         if (wallet.network !== 'sepolia' && wallet.chainId !== '11155111') {
+          console.log("🔄 Switching to Sepolia Network");
           const switchingMessage: Message = {
             content: "You need to be on the Sepolia testnet to request an airdrop. I'll help you switch networks.",
             isBot: true,
@@ -81,6 +92,8 @@ export const ChatInterface: React.FC = () => {
           setMessages(prev => [...prev, switchingMessage]);
           
           const switched = await switchToSepoliaNetwork();
+          console.log("✅ Network switch result:", switched);
+          
           if (!switched) {
             const errorMessage: Message = {
               content: "Failed to switch to the Sepolia testnet. Please switch manually in your wallet and try again.",
@@ -94,7 +107,9 @@ export const ChatInterface: React.FC = () => {
         }
         
         // Process the airdrop
+        console.log("💰 Requesting airdrop:", { token: airdropCommand.token, amount: airdropCommand.amount });
         const result = await requestAirdrop(airdropCommand.token, airdropCommand.amount);
+        console.log("🎉 Airdrop result:", result);
         
         const resultMessage: Message = {
           content: result 
@@ -158,7 +173,7 @@ export const ChatInterface: React.FC = () => {
         }
       }
     } catch (error: any) {
-      console.error('Chat error:', error);
+      console.error('🚨 Chat error:', error);
       
       const errorMessage: Message = {
         content: "I'm sorry, I encountered an error processing your request. Please try again.",

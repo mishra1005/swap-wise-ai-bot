@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { BrowserProvider, JsonRpcSigner, formatEther } from 'ethers';
 import { toast } from 'sonner';
@@ -69,7 +68,10 @@ export const useWallet = () => {
   };
 
   const switchToSepoliaNetwork = async () => {
+    console.log("🔄 Attempting to switch to Sepolia Network");
+    
     if (!window.ethereum) {
+      console.error("🚨 No ethereum wallet detected");
       toast.error('No wallet detected');
       return false;
     }
@@ -77,31 +79,42 @@ export const useWallet = () => {
     setSwitchingNetwork(true);
     try {
       // First try to switch to the network
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: SEPOLIA_CHAIN_ID }],
-      });
-      toast.success('Switched to Sepolia testnet');
-      return true;
-    } catch (switchError: any) {
-      // This error code indicates that the chain has not been added to MetaMask
-      if (switchError.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [SEPOLIA_CONFIG],
-          });
-          toast.success('Added and switched to Sepolia testnet');
-          return true;
-        } catch (addError) {
-          console.error('Failed to add Sepolia network:', addError);
-          toast.error('Failed to add Sepolia network. Please add it manually.');
+      console.log("🌐 Requesting network switch:", SEPOLIA_CHAIN_ID);
+      
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: SEPOLIA_CHAIN_ID }],
+        });
+        
+        console.log("✅ Successfully switched to Sepolia");
+        toast.success('Switched to Sepolia testnet');
+        return true;
+      } catch (switchError: any) {
+        console.warn("❗ Network switch initial attempt failed:", switchError);
+        
+        // This error code indicates that the chain has not been added to MetaMask
+        if (switchError.code === 4902) {
+          console.log("🔧 Attempting to add Sepolia network");
+          try {
+            await window.ethereum.request({
+              method: 'wallet_addEthereumChain',
+              params: [SEPOLIA_CONFIG],
+            });
+            
+            console.log("✅ Added and switched to Sepolia network");
+            toast.success('Added and switched to Sepolia testnet');
+            return true;
+          } catch (addError) {
+            console.error('🚨 Failed to add Sepolia network:', addError);
+            toast.error('Failed to add Sepolia network. Please add it manually.');
+            return false;
+          }
+        } else {
+          console.error('🚨 Failed to switch to Sepolia:', switchError);
+          toast.error('Failed to switch to Sepolia network');
           return false;
         }
-      } else {
-        console.error('Failed to switch to Sepolia:', switchError);
-        toast.error('Failed to switch to Sepolia network');
-        return false;
       }
     } finally {
       setSwitchingNetwork(false);
