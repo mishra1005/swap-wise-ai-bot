@@ -17,11 +17,26 @@ serve(async (req) => {
     const { message, chatHistory = [] } = await req.json()
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY')
     
+    if (!geminiApiKey) {
+      console.error('Missing GEMINI_API_KEY environment variable');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Configuration error: Missing API key'
+        }), 
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+    
+    console.log(`Processing request with ${chatHistory.length} previous messages`);
+    
     // Format the chat history for Gemini
     const formattedHistory = chatHistory.map(msg => ({
       role: msg.isBot ? 'model' : 'user',
       parts: [{ text: msg.content }]
-    }))
+    }));
 
     const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent', {
       method: 'POST',
@@ -32,8 +47,8 @@ serve(async (req) => {
       body: JSON.stringify({
         contents: [
           {
-            role: 'user',
-            parts: [{ text: 'You are a helpful assistant that specializes in cryptocurrency and DeFi topics. Keep responses concise and focused on helping users with their crypto-related questions. Analyze market trends, explain blockchain concepts, and offer insights about trading and investing in crypto assets.' }]
+            role: 'system',
+            parts: [{ text: 'You are a helpful assistant that specializes in cryptocurrency and DeFi topics. Keep responses concise and focused on helping users with their crypto-related questions. Analyze market trends, explain blockchain concepts, and offer insights about trading and investing in crypto assets. You are also knowledgeable about Web3, NFTs, and blockchain development. You can help users understand the Sepolia testnet and how to use it for development.' }]
           },
           ...formattedHistory,
           {
@@ -55,7 +70,16 @@ serve(async (req) => {
     }
 
     const data = await response.json()
+    
+    // Error handling for various response formats
+    if (!data || !data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      console.error('Unexpected API response format:', data);
+      throw new Error('Invalid response format from Gemini API');
+    }
+    
     const aiResponse = data.candidates[0].content.parts[0].text
+
+    console.log(`Generated response (${aiResponse.length} chars)`);
 
     return new Response(JSON.stringify({ content: aiResponse }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -4,6 +4,9 @@ import { Message } from "@/types/chat";
 
 export const generateAIResponse = async (message: string, chatHistory: Message[] = []): Promise<string> => {
   try {
+    console.log("Generating AI response for:", message);
+    console.log("Chat history length:", chatHistory.length);
+    
     const { data, error } = await supabase.functions.invoke('chat', {
       body: { message, chatHistory }
     });
@@ -13,7 +16,7 @@ export const generateAIResponse = async (message: string, chatHistory: Message[]
       throw error;
     }
     
-    if (!data.content) {
+    if (!data?.content) {
       console.error('No response content:', data);
       throw new Error('No response content');
     }
